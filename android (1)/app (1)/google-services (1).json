@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "866670045570",
+    "project_id": "luggease-89d1f",
+    "storage_bucket": "luggease-89d1f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:866670045570:android:341e5ba152333ea4cf479b",
+        "android_client_info": {
+          "package_name": "com.example.luggease"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAyBfnMrrRi1FrN7yq4ZWQIX1MMoaPB3WE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:866670045570:android:d6bdb408f671903fcf479b",
+        "android_client_info": {
+          "package_name": "com.luggease.luggease"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAyBfnMrrRi1FrN7yq4ZWQIX1MMoaPB3WE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

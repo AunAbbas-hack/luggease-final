@@ -1,0 +1,4 @@
+#Thu Mar 05 23:57:37 PKT 2026
+base.0=C\:\\Users\\Dell\\Documents\\fyp\\luggease\\android\\app\\build\\intermediates\\dex\\release\\minifyReleaseWithR8\\classes.dex
+path.0=classes.dex
+renamed.0=classes.dex

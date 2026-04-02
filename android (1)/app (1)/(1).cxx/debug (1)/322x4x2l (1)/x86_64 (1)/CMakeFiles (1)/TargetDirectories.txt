@@ -1,0 +1,2 @@
+C:/Users/Dell/Documents/fyp/luggease/android/app/.cxx/debug/322x4x2l/x86_64/CMakeFiles/edit_cache.dir
+C:/Users/Dell/Documents/fyp/luggease/android/app/.cxx/debug/322x4x2l/x86_64/CMakeFiles/rebuild_cache.dir

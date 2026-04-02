@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="classes50">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/build/cloud_firestore/intermediates/aar_main_jar/release/syncReleaseLibJars/classes.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
