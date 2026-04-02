@@ -1,14 +1,1 @@
-{
-  "firestore": {
-    "database": "(default)",
-    "location": "us-central1",
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
-  },
-  "database": {
-    "rules": "database.rules.json"
-  },
-  "auth": {
-    "providers": {}
-  }
-}
+{"firestore":{"database":"(default)","location":"us-central1","rules":"firestore.rules","indexes":"firestore.indexes.json"},"database":{"rules":"database.rules.json"},"auth":{"providers":{}},"flutter":{"platforms":{"dart":{"lib/firebase_options.dart":{"projectId":"luggease-89d1f","configurations":{"android":"1:866670045570:android:341e5ba152333ea4cf479b","ios":"1:866670045570:ios:99c77346bd8145cfcf479b","macos":"1:866670045570:ios:39e0635fc072e9f7cf479b","web":"1:866670045570:web:c31f1e78153844cfcf479b","windows":"1:866670045570:web:793838d0b888a3fecf479b"}}},"android":{"default":{"projectId":"luggease-89d1f","appId":"1:866670045570:android:341e5ba152333ea4cf479b","fileOutput":"android/app/google-services.json"}}}}}
