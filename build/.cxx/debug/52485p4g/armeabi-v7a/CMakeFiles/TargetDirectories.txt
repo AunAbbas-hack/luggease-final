@@ -1,2 +1,0 @@
-C:/Users/Dell/Documents/fyp/luggease/build/.cxx/debug/52485p4g/armeabi-v7a/CMakeFiles/edit_cache.dir
-C:/Users/Dell/Documents/fyp/luggease/build/.cxx/debug/52485p4g/armeabi-v7a/CMakeFiles/rebuild_cache.dir
