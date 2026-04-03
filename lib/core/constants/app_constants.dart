@@ -13,8 +13,12 @@ class AppConstants {
   static const Color textSecondary = Color(0xFF94A3B8);
   static const Color accentColor = Color(0xFF3B82F6);
   
-  // Firestore Collections
-  static const String usersCollection = 'users';
+  // Firestore Collections (profiles by role — see UserRole.collectionName)
+  static const String customersCollection = 'customers';
+  static const String driversCollection = 'drivers';
+  static const String adminsCollection = 'admins';
+  /// Legacy; AuthService still reads this for existing accounts until migrated.
+  static const String legacyUsersCollection = 'users';
   static const String bookingsCollection = 'bookings';
   static const String chatsCollection = 'chats';
   static const String ratingsCollection = 'ratings';

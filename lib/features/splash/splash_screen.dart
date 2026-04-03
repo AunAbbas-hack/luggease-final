@@ -68,10 +68,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     if (userModel != null) {
       appState.setUser(userModel);
-      if (userModel.role == UserRole.driver) {
-        context.go(AppRoutes.driverDashboard);
-      } else {
-        context.go(AppRoutes.customerDashboard);
+      switch (userModel.role) {
+        case UserRole.driver:
+          context.go(AppRoutes.driverDashboard);
+          break;
+        case UserRole.admin:
+          context.go(AppRoutes.adminDashboard);
+          break;
+        case UserRole.customer:
+          context.go(AppRoutes.customerDashboard);
+          break;
       }
       return;
     }

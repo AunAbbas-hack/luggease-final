@@ -1,6 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum UserRole { customer, driver }
+enum UserRole { customer, driver, admin }
+
+/// Firestore top-level collection for this role (Console: open collection → see all accounts of that type).
+extension UserRoleFirestore on UserRole {
+  String get collectionName {
+    switch (this) {
+      case UserRole.customer:
+        return 'customers';
+      case UserRole.driver:
+        return 'drivers';
+      case UserRole.admin:
+        return 'admins';
+    }
+  }
+}
 
 class UserModel {
   final String uid;
@@ -47,6 +61,14 @@ class UserModel {
     };
   }
 
+  static UserRole _roleFromField(Object? value) {
+    final s = value?.toString() ?? 'customer';
+    return UserRole.values.firstWhere(
+      (r) => r.name == s,
+      orElse: () => UserRole.customer,
+    );
+  }
+
   factory UserModel.fromMap(Map<String, dynamic> map) {
     return UserModel(
       uid: map['uid'] ?? '',
@@ -54,7 +76,7 @@ class UserModel {
       email: map['email'] ?? '',
       phone: map['phone'] ?? '',
       address: map['address'],
-      role: map['role'] == 'driver' ? UserRole.driver : UserRole.customer,
+      role: _roleFromField(map['role']),
       profileImage: map['profileImage'],
       createdAt: (map['createdAt'] as Timestamp).toDate(),
       cnic: map['cnic'],

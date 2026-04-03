@@ -8,6 +8,14 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  /// Order: role-based collections first, then legacy `users` for old installs.
+  static const List<String> _profileLookupOrder = [
+    'customers',
+    'drivers',
+    'admins',
+    'users',
+  ];
+
   Stream<User?> get user => _auth.authStateChanges();
 
   /// Short, user-facing text for signup/login failures (no raw exception dumps).
@@ -44,6 +52,18 @@ class AuthService {
       return 'Could not save your profile. Please try again.';
     }
     return 'Something went wrong. Please try again.';
+  }
+
+  Future<DocumentSnapshot<Map<String, dynamic>>?> _firstExistingProfile(
+    String uid,
+  ) async {
+    final snaps = await Future.wait(
+      _profileLookupOrder.map((c) => _db.collection(c).doc(uid).get()),
+    );
+    for (final doc in snaps) {
+      if (doc.exists && doc.data() != null) return doc;
+    }
+    return null;
   }
 
   Future<UserModel> signup({
@@ -85,10 +105,12 @@ class AuthService {
         vehicleNumber: vehicleNumber,
       );
 
-      debugPrint("AuthService: Saving user data to Firestore");
-      // Do not wrap in a short Future.timeout — it can throw while the write
-      // still completes on the server, causing false errors and orphan Auth users.
-      await _db.collection('users').doc(userModel.uid).set(userModel.toMap());
+      final collection = role.collectionName;
+      debugPrint("AuthService: Saving user data to Firestore/$collection");
+      await _db
+          .collection(collection)
+          .doc(userModel.uid)
+          .set(userModel.toMap());
       debugPrint("AuthService: User data saved successfully");
 
       return userModel;
@@ -110,8 +132,8 @@ class AuthService {
   Future<UserModel?> loadCurrentUserProfile() async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return null;
-    final doc = await _db.collection('users').doc(uid).get();
-    if (!doc.exists || doc.data() == null) return null;
+    final doc = await _firstExistingProfile(uid);
+    if (doc == null || !doc.exists || doc.data() == null) return null;
     return UserModel.fromMap(doc.data()!);
   }
 
@@ -125,11 +147,10 @@ class AuthService {
       final uid = credential.user?.uid;
       if (uid == null) return null;
 
-      final doc = await _db.collection('users').doc(uid).get();
-      if (doc.exists) {
+      final doc = await _firstExistingProfile(uid);
+      if (doc != null && doc.exists && doc.data() != null) {
         return UserModel.fromMap(doc.data()!);
       }
-      // Signed in with Auth but no Firestore profile — avoid stuck session in app.
       await _auth.signOut();
       return null;
     } catch (e) {
@@ -143,10 +164,33 @@ class AuthService {
 
   Future<void> updateUserProfile(UserModel user) async {
     try {
-      await _db.collection('users').doc(user.uid).update(user.toMap());
+      final existing = await _firstExistingProfile(user.uid);
+      if (existing != null && existing.exists) {
+        await existing.reference.update(user.toMap());
+        return;
+      }
+      await _db
+          .collection(user.role.collectionName)
+          .doc(user.uid)
+          .set(user.toMap());
     } catch (e) {
       debugPrint("AuthService Update Error: $e");
       rethrow;
     }
+  }
+
+  /// Merges FCM token into whichever profile doc exists (or legacy `users`).
+  Future<void> saveFcmTokenToProfile(String token) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+    final snap = await _firstExistingProfile(uid);
+    if (snap == null || !snap.exists) return;
+    await snap.reference.set(
+      {
+        'fcmToken': token,
+        'lastTokenUpdate': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
   }
 }

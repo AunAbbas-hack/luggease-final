@@ -22,6 +22,7 @@ import '../../features/driver/profile/driver_profile_screen.dart';
 import '../../features/driver/delivery/delivery_camera_screen.dart';
 import '../../features/customer/profile/edit_profile_screen.dart';
 import '../../features/customer/profile/settings_screen.dart';
+import '../../features/admin/dashboard/admin_dashboard_screen.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -32,6 +33,7 @@ class AppRoutes {
   static const String checkEmail = '/check-email';
   static const String customerDashboard = '/customer-dashboard';
   static const String driverDashboard = '/driver-dashboard';
+  static const String adminDashboard = '/admin-dashboard';
   static const String bookRide = '/book-ride';
   static const String itemsManagement = '/items-management';
   static const String tracking = '/tracking';
@@ -81,6 +83,10 @@ class AppRoutes {
       GoRoute(
         path: driverDashboard,
         builder: (context, state) => const DriverDashboardScreen(),
+      ),
+      GoRoute(
+        path: adminDashboard,
+        builder: (context, state) => const AdminDashboardScreen(),
       ),
       GoRoute(
         path: bookRide,

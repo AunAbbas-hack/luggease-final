@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/routes/app_routes.dart';
 import '../../core/services/auth_service.dart';
+import '../../models/user_model.dart';
 import '../../providers/app_state.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -38,10 +40,16 @@ class _LoginScreenState extends State<LoginScreen> {
       if (userModel != null) {
         if (!mounted) return;
         Provider.of<AppState>(context, listen: false).setUser(userModel);
-        if (userModel.role.name == 'driver') {
-          context.go('/driver-dashboard');
-        } else {
-          context.go('/customer-dashboard');
+        switch (userModel.role) {
+          case UserRole.driver:
+            context.go(AppRoutes.driverDashboard);
+            break;
+          case UserRole.admin:
+            context.go(AppRoutes.adminDashboard);
+            break;
+          case UserRole.customer:
+            context.go(AppRoutes.customerDashboard);
+            break;
         }
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

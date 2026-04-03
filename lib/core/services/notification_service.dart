@@ -1,7 +1,8 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+import 'auth_service.dart';
 
 class NotificationService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
@@ -63,16 +64,10 @@ class NotificationService {
 
   static Future<void> _saveTokenToFirestore(String token) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .set({
-          'fcmToken': token,
-          'lastTokenUpdate': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true)).timeout(const Duration(seconds: 5));
-      }
+      if (FirebaseAuth.instance.currentUser == null) return;
+      await AuthService()
+          .saveFcmTokenToProfile(token)
+          .timeout(const Duration(seconds: 5));
     } catch (e) {
       debugPrint('Error saving token to Firestore: $e');
     }

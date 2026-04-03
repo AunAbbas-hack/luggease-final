@@ -3,7 +3,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ----- helpers -----
     function signedIn() {
       return request.auth != null;
     }
@@ -20,14 +19,45 @@ service cloud.firestore {
       );
     }
 
-    // ----- users: own profile only (signup + FCM token merge) -----
+    // ----- Profile collections by role (customers / drivers / admins) -----
+    function isOwnProfileDoc(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    match /customers/{userId} {
+      allow read: if isOwnProfileDoc(userId);
+      allow create: if isOwnProfileDoc(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.role == 'customer';
+      allow update: if isOwnProfileDoc(userId);
+      allow delete: if isOwnProfileDoc(userId);
+    }
+
+    match /drivers/{userId} {
+      allow read: if isOwnProfileDoc(userId);
+      allow create: if isOwnProfileDoc(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.role == 'driver';
+      allow update: if isOwnProfileDoc(userId);
+      allow delete: if isOwnProfileDoc(userId);
+    }
+
+    match /admins/{userId} {
+      allow read: if isOwnProfileDoc(userId);
+      allow create: if isOwnProfileDoc(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.role == 'admin';
+      allow update: if isOwnProfileDoc(userId);
+      allow delete: if isOwnProfileDoc(userId);
+    }
+
+    // Legacy `users` (existing accounts until migrated)
     match /users/{userId} {
-      allow read: if signedIn() && request.auth.uid == userId;
-      allow create: if signedIn()
-        && request.auth.uid == userId
+      allow read: if isOwnProfileDoc(userId);
+      allow create: if isOwnProfileDoc(userId)
         && request.resource.data.uid == userId;
-      allow update: if signedIn() && request.auth.uid == userId;
-      allow delete: if signedIn() && request.auth.uid == userId;
+      allow update: if isOwnProfileDoc(userId);
+      allow delete: if isOwnProfileDoc(userId);
     }
 
     // ----- bookings -----
@@ -47,7 +77,6 @@ service cloud.firestore {
       );
       allow delete: if signedIn() && resource.data.customerId == request.auth.uid;
 
-      // ----- chat under a booking -----
       match /messages/{messageId} {
         allow read: if signedIn()
           && exists(/databases/$(database)/documents/bookings/$(bookingId))
@@ -59,7 +88,6 @@ service cloud.firestore {
       }
     }
 
-    // ----- luggage (per userId) -----
     match /luggage/{docId} {
       allow read: if signedIn() && resource.data.userId == request.auth.uid;
       allow create: if signedIn()
@@ -68,13 +96,11 @@ service cloud.firestore {
         && resource.data.userId == request.auth.uid;
     }
 
-    // ----- ratings (driver dashboard reads; tighten when you add writes) -----
     match /ratings/{ratingId} {
       allow read: if signedIn();
       allow write: if signedIn();
     }
 
-    // Deny everything else by default
     match /{document=**} {
       allow read, write: if false;
     }
