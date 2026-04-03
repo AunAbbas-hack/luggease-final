@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+
 import '../../core/constants/app_constants.dart';
+import '../../core/routes/app_routes.dart';
+import '../../core/services/auth_service.dart';
+import '../../models/user_model.dart';
+import '../../providers/app_state.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -48,13 +54,31 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _checkAuthAndNavigate() async {
-    // Requirements: Splash must stay for 3 seconds
     await Future.delayed(AppConstants.splashDelay);
-    
     if (!mounted) return;
 
-    // Requirements: Always go to role selection after splash
-    context.go('/role-selection');
+    final appState = Provider.of<AppState>(context, listen: false);
+    await appState.waitForPrefsReady();
+    if (!mounted) return;
+
+    final authService = AuthService();
+    final userModel = await authService.loadCurrentUserProfile();
+
+    if (!mounted) return;
+
+    if (userModel != null) {
+      appState.setUser(userModel);
+      if (userModel.role == UserRole.driver) {
+        context.go(AppRoutes.driverDashboard);
+      } else {
+        context.go(AppRoutes.customerDashboard);
+      }
+      return;
+    }
+
+    await appState.logoutFromApp();
+    if (!mounted) return;
+    context.go(AppRoutes.roleSelection);
   }
 
   @override

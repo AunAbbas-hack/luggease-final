@@ -18,6 +18,7 @@
         "flutter",
         "flutter_svg",
         "geolocator",
+        "get",
         "go_router",
         "google_fonts",
         "google_maps_flutter",
@@ -55,6 +56,14 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "get",
+      "version": "4.7.3",
+      "dependencies": [
+        "flutter",
+        "web"
       ]
     },
     {
@@ -353,6 +362,11 @@
         "string_scanner",
         "term_glyph"
       ]
+    },
+    {
+      "name": "web",
+      "version": "1.1.1",
+      "dependencies": []
     },
     {
       "name": "url_launcher_windows",
@@ -948,11 +962,6 @@
         "source_span",
         "string_scanner"
       ]
-    },
-    {
-      "name": "web",
-      "version": "1.1.1",
-      "dependencies": []
     },
     {
       "name": "plugin_platform_interface",

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/routes/app_routes.dart';
 import '../../core/services/auth_service.dart';
 import '../../models/user_model.dart';
 import '../../providers/app_state.dart';
@@ -30,6 +31,8 @@ class _SignupScreenState extends State<SignupScreen> {
   final _authService = AuthService();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  /// Prevents double-tap / overlapping signup calls (second call got [email-already-in-use] while first succeeded).
+  bool _signupInFlight = false;
 
   @override
   void dispose() {
@@ -45,76 +48,79 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _handleSignup() async {
-    // 1. Basic Form Validation
-    if (!_formKey.currentState!.validate()) return;
+    if (_signupInFlight) return;
+    _signupInFlight = true;
 
-    // 2. Custom Validations
-    final email = _emailController.text.trim();
-    final phone = _phoneController.text.trim();
-    final password = _passwordController.text.trim();
-    final confirmPassword = _confirmPasswordController.text.trim();
-
-    // Email Regex
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(email)) {
-      _showError("Invalid email format. Please enter a valid email.");
-      return;
-    }
-
-    // Phone Validation (basic length check)
-    if (phone.length < 10) {
-      _showError("Phone number format is incorrect.");
-      return;
-    }
-
-    // Password Match
-    if (password != confirmPassword) {
-      _showError("Passwords do not match.");
-      return;
-    }
-
-    setState(() => _isLoading = true);
-    debugPrint("SignupScreen: Starting signup process");
-    
     try {
-      final userModel = await _authService.signup(
-        name: _nameController.text.trim(),
-        email: email,
-        password: password,
-        phone: phone,
-        role: widget.role == 'driver' ? UserRole.driver : UserRole.customer,
-        cnic: widget.role == 'driver' ? _cnicController.text.trim() : null,
-        vehicleType: widget.role == 'driver' ? _vehicleTypeController.text.trim() : null,
-        vehicleNumber: widget.role == 'driver' ? _vehicleNumberController.text.trim() : null,
-      );
+      if (!_formKey.currentState!.validate()) return;
 
-      debugPrint("SignupScreen: Signup API returned user: ${userModel?.uid}");
+      final email = _emailController.text.trim();
+      final phoneRaw = _phoneController.text.trim();
+      final password = _passwordController.text.trim();
+      final confirmPassword = _confirmPasswordController.text.trim();
 
-      if (userModel != null) {
-        if (!mounted) return;
-        
-        debugPrint("SignupScreen: Updating AppState");
-        Provider.of<AppState>(context, listen: false).setUser(userModel);
-        
-        debugPrint("SignupScreen: Navigating to dashboard for role: ${userModel.role}");
-        if (userModel.role == UserRole.driver) {
-          context.go('/driver-dashboard');
-        } else {
-          context.go('/customer-dashboard');
-        }
-      } else {
-        debugPrint("SignupScreen: User model is null after signup");
-        _showError("Signup failed. Please try again.");
+      // Practical email check (allows longer TLDs like .museum, .travel)
+      final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+      if (!emailRegex.hasMatch(email)) {
+        _showError("Invalid email format. Please enter a valid email.");
+        return;
       }
-    } catch (e) {
-      debugPrint("SignupScreen Error: $e");
-      if (mounted) {
-        _showError(e.toString());
+
+      final phoneDigits = phoneRaw.replaceAll(RegExp(r'\D'), '');
+      if (phoneDigits.length < 10) {
+        _showError("Enter a valid phone number (at least 10 digits).");
+        return;
+      }
+
+      if (password != confirmPassword) {
+        _showError("Passwords do not match.");
+        return;
+      }
+
+      if (!mounted) return;
+      setState(() => _isLoading = true);
+      debugPrint("SignupScreen: Starting signup process");
+
+      try {
+        final userModel = await _authService.signup(
+          name: _nameController.text.trim(),
+          email: email,
+          password: password,
+          phone: phoneRaw,
+          role: widget.role == 'driver' ? UserRole.driver : UserRole.customer,
+          cnic: widget.role == 'driver' ? _cnicController.text.trim() : null,
+          vehicleType: widget.role == 'driver' ? _vehicleTypeController.text.trim() : null,
+          vehicleNumber: widget.role == 'driver' ? _vehicleNumberController.text.trim() : null,
+        );
+
+        debugPrint("SignupScreen: Signup complete: ${userModel.uid}");
+        if (!mounted) return;
+
+        await Provider.of<AppState>(context, listen: false).logoutFromApp();
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Account created. Please sign in.'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.green,
+            margin: EdgeInsets.all(20),
+          ),
+        );
+
+        context.go(AppRoutes.login, extra: widget.role);
+      } catch (e) {
+        debugPrint("SignupScreen Error: $e");
+        if (mounted) {
+          _showError(AuthService.userMessageForError(e));
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      _signupInFlight = false;
     }
   }
 
@@ -201,7 +207,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       width: double.infinity,
                       height: 56,
                       child: ElevatedButton(
-                        onPressed: _handleSignup,
+                        onPressed: _signupInFlight ? null : _handleSignup,
                         style: ElevatedButton.styleFrom(
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),

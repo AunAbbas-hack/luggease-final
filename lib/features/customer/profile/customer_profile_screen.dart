@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../providers/app_state.dart';
-import '../../../core/services/auth_service.dart';
 
 class CustomerProfileScreen extends StatelessWidget {
   const CustomerProfileScreen({super.key});
@@ -203,8 +202,8 @@ class CustomerProfileScreen extends StatelessWidget {
           ),
           TextButton(
             onPressed: () async {
-              final authService = Provider.of<AuthService>(context, listen: false);
-              await authService.logout();
+              final appState = Provider.of<AppState>(context, listen: false);
+              await appState.logoutFromApp();
               if (context.mounted) {
                 context.go('/role-selection');
               }

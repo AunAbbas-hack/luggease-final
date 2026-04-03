@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../providers/app_state.dart';
-import '../../../../core/services/auth_service.dart';
 
 class DashboardDrawer extends StatelessWidget {
   const DashboardDrawer({super.key});
@@ -178,8 +177,8 @@ class DashboardDrawer extends StatelessWidget {
   }
 
   Future<void> _handleLogout(BuildContext context) async {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    await authService.logout();
+    final appState = Provider.of<AppState>(context, listen: false);
+    await appState.logoutFromApp();
     if (context.mounted) {
       context.go('/role-selection');
     }
