@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="feature-camera_android_camerax2">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/build/camera_android_camerax/intermediates/merged_java_res/release/mergeReleaseJavaResource/feature-camera_android_camerax.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>

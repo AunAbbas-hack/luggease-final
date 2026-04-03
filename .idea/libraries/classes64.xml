@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="classes64">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/build/google_maps_flutter_android/intermediates/compile_library_classes_jar/debug/bundleLibCompileToJarDebug/classes.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>

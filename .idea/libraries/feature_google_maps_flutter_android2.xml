@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="feature-google_maps_flutter_android2">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/build/google_maps_flutter_android/intermediates/merged_java_res/debug/mergeDebugJavaResource/feature-google_maps_flutter_android.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>
