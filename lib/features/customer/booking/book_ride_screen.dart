@@ -8,6 +8,7 @@ import 'dart:io';
 import 'dart:async';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/booking_service.dart';
 import '../../../../models/booking_model.dart';
 import '../../../../providers/app_state.dart' hide LuggageItem, LuggageStatus;
@@ -34,15 +35,19 @@ class _BookRideScreenState extends State<BookRideScreen> {
   
   BookingStatus _rideStatus = BookingStatus.pending;
   BookingModel? _activeBooking;
-  
+  /// True after Firestore create until booking becomes accepted (or cancelled).
+  bool _awaitingDriver = false;
+  Map<String, dynamic>? _driverProfile;
+  String? _loadedDriverIdForProfile;
+  StreamSubscription<BookingModel?>? _bookingSubscription;
+
   GoogleMapController? _mapController;
   final Set<Polyline> _polylines = {};
   final Set<Marker> _markers = {};
-  Timer? _trackingTimer;
 
   @override
   void dispose() {
-    _trackingTimer?.cancel();
+    _bookingSubscription?.cancel();
     _pickupController.dispose();
     _dropController.dispose();
     _bidController.dispose();
@@ -189,7 +194,10 @@ class _BookRideScreenState extends State<BookRideScreen> {
       return;
     }
 
-    setState(() => _rideStatus = BookingStatus.searching);
+    setState(() {
+      _awaitingDriver = true;
+      _driverProfile = null;
+    });
 
     try {
       final booking = BookingModel(
@@ -199,100 +207,163 @@ class _BookRideScreenState extends State<BookRideScreen> {
         dropLocation: _dropController.text.trim(),
         vehicleType: _selectedVehicle!.name,
         price: double.tryParse(_bidController.text.trim()) ?? 0.0,
-        status: BookingStatus.searching,
+        status: BookingStatus.pending,
         createdAt: DateTime.now(),
         items: _items,
       );
 
       _activeBooking = booking;
       await _bookingService.createBooking(booking);
-
-      Future.delayed(const Duration(seconds: 4), () {
-        if (mounted && _rideStatus == BookingStatus.searching) {
-          setState(() {
-            _rideStatus = BookingStatus.accepted;
-            _startTrackingSimulation();
-          });
-        }
-      });
-
+      _subscribeToBooking(booking.bookingId);
     } catch (e) {
       if (mounted) {
         _showSnackBar("Error: ${e.toString()}");
-        setState(() => _rideStatus = BookingStatus.pending);
+        setState(() {
+          _awaitingDriver = false;
+          _rideStatus = BookingStatus.pending;
+          _activeBooking = null;
+        });
       }
     }
   }
 
-  void _startTrackingSimulation() {
-    _trackingTimer?.cancel();
-    double lat = 24.8707;
-    double lng = 67.0111;
-    
-    _trackingTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
-      if (!mounted || _rideStatus != BookingStatus.accepted) {
-        timer.cancel();
-        return;
+  void _subscribeToBooking(String bookingId) {
+    _bookingSubscription?.cancel();
+    _bookingSubscription = _bookingService.watchBooking(bookingId).listen((booking) async {
+      if (!mounted || booking == null) return;
+      setState(() => _activeBooking = booking);
+
+      if (booking.status == BookingStatus.accepted && booking.driverId != null) {
+        if (_loadedDriverIdForProfile != booking.driverId) {
+          _loadedDriverIdForProfile = booking.driverId;
+          final profile = await _bookingService.getDriverProfileMap(booking.driverId!);
+          if (!mounted) return;
+          setState(() => _driverProfile = profile);
+        }
+        if (!mounted) return;
+        setState(() {
+          _awaitingDriver = false;
+          _rideStatus = BookingStatus.accepted;
+        });
+        _applyDriverLocationFromBooking(booking);
+      } else if (booking.status == BookingStatus.pending ||
+          booking.status == BookingStatus.searching) {
+        setState(() => _awaitingDriver = true);
+      } else if (booking.status == BookingStatus.cancelled) {
+        _resetToForm(cancelRemote: false);
       }
-      setState(() {
-        lat -= 0.0005;
-        lng -= 0.0005;
-        _markers.clear();
-        _markers.add(Marker(
-          markerId: const MarkerId('driver'),
-          position: LatLng(lat, lng),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-          infoWindow: const InfoWindow(title: "Driver Location"),
-        ));
-        _mapController?.animateCamera(CameraUpdate.newLatLng(LatLng(lat, lng)));
-      });
     });
   }
 
-  void _showRideSummary() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppConstants.surfaceColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Center(child: Text("Ride Completed!", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 64),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text("Total Fare", style: TextStyle(color: Colors.white70)),
-                Text("Rs. ${_activeBooking?.price ?? 0.0}", style: const TextStyle(color: AppConstants.primaryColor, fontSize: 18, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const Divider(color: Colors.white12, height: 32),
-            const Text("Rate your driver", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (index) => const Icon(Icons.star, color: Colors.amber, size: 32)),
-            ),
-          ],
+  void _applyDriverLocationFromBooking(BookingModel booking) {
+    final lat = booking.driverLat;
+    final lng = booking.driverLng;
+    if (lat == null || lng == null) {
+      setState(() {
+        _markers.removeWhere((m) => m.markerId.value == 'driver');
+      });
+      return;
+    }
+    setState(() {
+      _markers.removeWhere((m) => m.markerId.value == 'driver');
+      _markers.add(
+        Marker(
+          markerId: const MarkerId('driver'),
+          position: LatLng(lat, lng),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+          infoWindow: const InfoWindow(title: 'Driver location'),
         ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context); // Close dialog
-                setState(() => _rideStatus = BookingStatus.pending);
-                context.pop(); // Go back to dashboard
-              },
-              child: const Text("Done"),
-            ),
-          ),
-        ],
-      ),
-    );
+      );
+    });
+    _mapController?.animateCamera(CameraUpdate.newLatLng(LatLng(lat, lng)));
+  }
+
+  Future<void> _cancelOpenBookingOnServer() async {
+    final booking = _activeBooking;
+    if (booking == null) return;
+    if (booking.status != BookingStatus.pending &&
+        booking.status != BookingStatus.searching) {
+      return;
+    }
+    final uid = Provider.of<AppState>(context, listen: false).currentUser?.uid;
+    if (uid == null) return;
+    try {
+      await _bookingService.cancelBooking(
+        booking.bookingId,
+        cancelledByUid: uid,
+        reason: 'customer_cancel_open_request',
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _resetLocalBookingState() async {
+    _bookingSubscription?.cancel();
+    _bookingSubscription = null;
+    if (!mounted) return;
+    setState(() {
+      _awaitingDriver = false;
+      _rideStatus = BookingStatus.pending;
+      _activeBooking = null;
+      _driverProfile = null;
+      _loadedDriverIdForProfile = null;
+      _markers.clear();
+      _polylines.clear();
+    });
+  }
+
+  Future<void> _cancelSearchAndReset() async {
+    await _cancelOpenBookingOnServer();
+    await _resetLocalBookingState();
+  }
+
+  Future<void> _customerCancelActiveRide() async {
+    final id = _activeBooking?.bookingId;
+    if (id == null) return;
+    final uid = Provider.of<AppState>(context, listen: false).currentUser?.uid;
+    if (uid == null) return;
+    try {
+      await _bookingService.cancelBooking(
+        id,
+        cancelledByUid: uid,
+        reason: 'customer_cancel_after_assign',
+      );
+    } catch (_) {}
+    await _resetLocalBookingState();
+  }
+
+  void _resetToForm({required bool cancelRemote}) {
+    if (cancelRemote) {
+      final id = _activeBooking?.bookingId;
+      final uid = Provider.of<AppState>(context, listen: false).currentUser?.uid;
+      if (id != null && uid != null) {
+        _bookingService
+            .cancelBooking(
+              id,
+              cancelledByUid: uid,
+              reason: 'customer_cancel_remote',
+            )
+            .catchError((_) {});
+      }
+    }
+    _bookingSubscription?.cancel();
+    _bookingSubscription = null;
+    if (mounted) {
+      setState(() {
+        _awaitingDriver = false;
+        _rideStatus = BookingStatus.pending;
+        _activeBooking = null;
+        _driverProfile = null;
+        _loadedDriverIdForProfile = null;
+        _markers.clear();
+        _polylines.clear();
+      });
+    }
+  }
+
+  void _openLiveTracking() {
+    final id = _activeBooking?.bookingId;
+    if (id == null || id.isEmpty) return;
+    context.push(AppRoutes.tracking, extra: id);
   }
 
   void _showSnackBar(String message) {
@@ -328,11 +399,22 @@ class _BookRideScreenState extends State<BookRideScreen> {
                   Row(
                     children: [
                       GestureDetector(
-                        onTap: () {
-                          if (_rideStatus == BookingStatus.pending) {
+                        onTap: () async {
+                          final onForm =
+                              !_awaitingDriver && _rideStatus != BookingStatus.accepted;
+                          if (onForm) {
                             context.pop();
-                          } else {
-                            setState(() => _rideStatus = BookingStatus.pending);
+                            return;
+                          }
+                          if (_awaitingDriver) {
+                            await _cancelSearchAndReset();
+                            if (!context.mounted) return;
+                            context.pop();
+                            return;
+                          }
+                          if (_rideStatus == BookingStatus.accepted) {
+                            if (!context.mounted) return;
+                            context.pop();
                           }
                         },
                         child: Container(
@@ -348,7 +430,7 @@ class _BookRideScreenState extends State<BookRideScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  if (_rideStatus == BookingStatus.pending)
+                  if (!_awaitingDriver && _rideStatus != BookingStatus.accepted)
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -395,7 +477,7 @@ class _BookRideScreenState extends State<BookRideScreen> {
   }
 
   Widget _buildBottomUI() {
-    if (_rideStatus == BookingStatus.searching) {
+    if (_awaitingDriver) {
       return Container(
         padding: const EdgeInsets.all(32),
         width: double.infinity,
@@ -408,21 +490,27 @@ class _BookRideScreenState extends State<BookRideScreen> {
           children: [
             const CircularProgressIndicator(color: AppConstants.primaryColor),
             const SizedBox(height: 24),
-            const Text("Searching for Driver...", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'Waiting for a driver…',
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
-            const Text("Finding the best available driver near you", style: TextStyle(color: Colors.white54, fontSize: 12)),
+            const Text(
+              'Your request is open to nearby drivers',
+              style: TextStyle(color: Colors.white54, fontSize: 12),
+            ),
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
               height: 50,
               child: OutlinedButton(
-                onPressed: () => setState(() => _rideStatus = BookingStatus.pending),
+                onPressed: _cancelSearchAndReset,
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.redAccent), 
+                  side: const BorderSide(color: Colors.redAccent),
                   foregroundColor: Colors.redAccent,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
-                child: const Text("Cancel Search"),
+                child: const Text('Cancel request'),
               ),
             ),
           ],
@@ -431,30 +519,52 @@ class _BookRideScreenState extends State<BookRideScreen> {
     }
 
     if (_rideStatus == BookingStatus.accepted) {
+      final p = _driverProfile;
+      final name = (p?['name'] as String?)?.trim();
+      final displayName = (name != null && name.isNotEmpty) ? name : 'Driver';
+      final vehicleInfo = (p?['vehicleType'] as String?)?.trim() ?? 'Vehicle';
+      final vehicleNumber = (p?['vehicleNumber'] as String?)?.trim() ?? '';
+      final photoUrl = (p?['profileImage'] as String?) ?? '';
+      final rating = (p?['rating'] as num?)?.toDouble() ?? 0.0;
+      final phone = (p?['phone'] as String?)?.trim() ?? '';
+
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           DriverInfoPanel(
-            name: "Ahmed Khan",
-            vehicleInfo: "Mini Truck",
-            vehicleNumber: "KHI-4567",
-            rating: 4.8,
-            photoUrl: "https://i.pravatar.cc/150?u=driver",
+            name: displayName,
+            vehicleInfo: vehicleInfo,
+            vehicleNumber: vehicleNumber.isNotEmpty ? vehicleNumber : '—',
+            rating: rating,
+            photoUrl: photoUrl,
             onCall: () async {
-              final Uri url = Uri(scheme: 'tel', path: '03123456789');
+              if (phone.isEmpty) {
+                _showSnackBar('Phone number not available');
+                return;
+              }
+              final Uri url = Uri(scheme: 'tel', path: phone);
               if (await canLaunchUrl(url)) await launchUrl(url);
             },
-            onChat: () => context.push('/chat-rooms', extra: {'bookingId': _activeBooking?.bookingId, 'receiverName': 'Ahmed Khan'}),
-            onCancel: () => setState(() => _rideStatus = BookingStatus.pending),
+            onChat: () {
+              final bid = _activeBooking?.bookingId;
+              if (bid == null || bid.isEmpty) return;
+              context.push(AppRoutes.chat, extra: {
+                'bookingId': bid,
+                'receiverName': displayName,
+              });
+            },
+            onCancel: () {
+              _customerCancelActiveRide();
+            },
           ),
           Container(
             color: AppConstants.surfaceColor,
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _showRideSummary,
+              onPressed: _openLiveTracking,
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: const Text("Finish Ride (Simulate)"),
+              child: const Text('Open live tracking'),
             ),
           ),
         ],

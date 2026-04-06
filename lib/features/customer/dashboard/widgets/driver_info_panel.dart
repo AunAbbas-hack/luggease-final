@@ -41,7 +41,13 @@ class DriverInfoPanel extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 30,
-                backgroundImage: NetworkImage(photoUrl),
+                backgroundColor: AppConstants.primaryColor.withValues(alpha: 0.3),
+                backgroundImage: photoUrl.isNotEmpty && photoUrl.startsWith('http')
+                    ? NetworkImage(photoUrl)
+                    : null,
+                child: photoUrl.isEmpty || !photoUrl.startsWith('http')
+                    ? const Icon(Icons.person, color: Colors.white, size: 32)
+                    : null,
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -59,12 +65,14 @@ class DriverInfoPanel extends StatelessWidget {
                           ),
                         ),
                         const Spacer(),
-                        const Icon(Icons.star, color: Colors.orange, size: 16),
-                        const SizedBox(width: 4),
-                        Text(
-                          rating.toString(),
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                        ),
+                        if (rating > 0) ...[
+                          const Icon(Icons.star, color: Colors.orange, size: 16),
+                          const SizedBox(width: 4),
+                          Text(
+                            rating.toString(),
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ],
                     ),
                     Text(

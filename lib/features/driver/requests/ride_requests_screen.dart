@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import '../../../models/booking_model.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/routes/app_routes.dart';
 
 class RideRequestsScreen extends StatefulWidget {
   const RideRequestsScreen({super.key});
@@ -18,6 +19,19 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
+      final openStatuses = {BookingStatus.pending, BookingStatus.searching};
+      if (!openStatuses.contains(booking.status)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('This request is no longer available.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
       await FirebaseFirestore.instance
           .collection(AppConstants.bookingsCollection)
           .doc(booking.bookingId)
@@ -30,7 +44,7 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Ride Accepted!"), backgroundColor: Colors.green),
         );
-        context.push('/tracking', extra: booking.bookingId);
+        context.push(AppRoutes.tracking, extra: booking.bookingId);
       }
     } catch (e) {
       if (mounted) {
@@ -55,7 +69,10 @@ class _RideRequestsScreenState extends State<RideRequestsScreen> {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection(AppConstants.bookingsCollection)
-            .where('status', isEqualTo: BookingStatus.pending.name)
+            .where('status', whereIn: [
+              BookingStatus.pending.name,
+              BookingStatus.searching.name,
+            ])
             .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {

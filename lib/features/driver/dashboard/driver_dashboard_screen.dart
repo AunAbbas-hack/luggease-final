@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/routes/app_routes.dart';
 import '../../../providers/app_state.dart';
 import '../../../models/booking_model.dart';
 
@@ -98,7 +99,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                       ),
 
                       GestureDetector(
-                        onTap: () => context.push('/profile'),
+                        onTap: () => context.push(AppRoutes.driverProfile),
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
@@ -245,10 +246,10 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                       mainAxisSpacing: 20,
                       crossAxisSpacing: 16,
                       children: [
-                        _QuickAction(icon: Icons.list_alt_rounded, label: "Requests", onTap: () => context.push('/ride-requests')),
-                        _QuickAction(icon: Icons.chat_bubble_rounded, label: "Chats", onTap: () => context.push('/chat')),
-                        _QuickAction(icon: Icons.history_rounded, label: "History", onTap: () => context.push('/history')),
-                        _QuickAction(icon: Icons.person_rounded, label: "Profile", onTap: () => context.push('/profile')),
+                        _QuickAction(icon: Icons.list_alt_rounded, label: "Requests", onTap: () => context.push(AppRoutes.rideRequests)),
+                        _QuickAction(icon: Icons.chat_bubble_rounded, label: "Chats", onTap: () => context.push(AppRoutes.rideRequests)),
+                        _QuickAction(icon: Icons.history_rounded, label: "History", onTap: () => context.push(AppRoutes.history)),
+                        _QuickAction(icon: Icons.person_rounded, label: "Profile", onTap: () => context.push(AppRoutes.driverProfile)),
                         _QuickAction(icon: Icons.settings_rounded, label: "Settings", onTap: () {}),
                         _QuickAction(icon: Icons.help_rounded, label: "Help", onTap: () {}),
                       ],

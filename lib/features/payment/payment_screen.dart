@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../widgets/custom_button.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/routes/app_routes.dart';
 import '../../models/booking_model.dart';
 
 class PaymentScreen extends StatefulWidget {
@@ -73,7 +74,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               label: 'Proceed to Pay',
               onPressed: () {
                 if (booking != null) {
-                  context.go('/track-ride', extra: booking.bookingId);
+                  context.go(AppRoutes.tracking, extra: booking.bookingId);
                 } else {
                   context.pop();
                 }

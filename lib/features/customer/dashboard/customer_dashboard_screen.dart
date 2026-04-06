@@ -2,14 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'dart:async';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/routes/app_routes.dart';
 import 'widgets/dashboard_drawer.dart';
 import 'widgets/vehicle_selector_widget.dart';
-import 'widgets/driver_info_panel.dart';
-
-enum RideState { idle, searching, assigned, inProgress }
 
 class CustomerDashboardScreen extends StatefulWidget {
   const CustomerDashboardScreen({super.key});
@@ -21,12 +18,9 @@ class CustomerDashboardScreen extends StatefulWidget {
 class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
   GoogleMapController? _mapController;
   LatLng _currentPosition = const LatLng(24.8607, 67.0011); // Default to Karachi
-  
-  RideState _rideState = RideState.idle;
+
   VehicleType? _selectedVehicle;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  final Set<Marker> _markers = {};
-  final Set<Polyline> _polylines = {};
   static const LatLng _initialPosition = LatLng(24.8607, 67.0011);
 
   @override
@@ -110,76 +104,12 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
     );
   }
 
-  void _handleBookRide() {
+  void _openBookRide() {
     if (_selectedVehicle == null) {
-      _showSnackBar("Please select a vehicle first.");
+      _showSnackBar('Please select a vehicle first.');
       return;
     }
-    setState(() {
-      _rideState = RideState.searching;
-      _markers.clear();
-      // Add some random "drivers" nearby
-      _markers.add(Marker(
-        markerId: const MarkerId('dr1'),
-        position: LatLng(_currentPosition.latitude + 0.002, _currentPosition.longitude + 0.002),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-      ));
-      _markers.add(Marker(
-        markerId: const MarkerId('dr2'),
-        position: LatLng(_currentPosition.latitude - 0.002, _currentPosition.longitude - 0.001),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-      ));
-    });
-    
-    // Simulate finding a driver after 5 seconds
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted && _rideState == RideState.searching) {
-        setState(() {
-          _rideState = RideState.assigned;
-          _markers.clear();
-          // Assigned driver marker
-          final driverPos = LatLng(_currentPosition.latitude + 0.003, _currentPosition.longitude + 0.003);
-          _markers.add(Marker(
-            markerId: const MarkerId('assigned_driver'),
-            position: driverPos,
-            infoWindow: const InfoWindow(title: "Ahmed Khan (Mini Truck)"),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-          ));
-          // Route simulation
-          _polylines.add(Polyline(
-            polylineId: const PolylineId('route'),
-            points: [_currentPosition, driverPos],
-            color: AppConstants.primaryColor,
-            width: 5,
-          ));
-        });
-      }
-    });
-  }
-
-  void _cancelRide() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppConstants.surfaceColor,
-        title: const Text("Cancel Ride", style: TextStyle(color: Colors.white)),
-        content: const Text("Are you sure you want to cancel this ride?", style: TextStyle(color: AppConstants.textSecondary)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("No")),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                _rideState = RideState.idle;
-                _markers.clear();
-                _polylines.clear();
-              });
-            },
-            child: const Text("Yes, Cancel", style: TextStyle(color: Colors.redAccent)),
-          ),
-        ],
-      ),
-    );
+    context.push(AppRoutes.bookRide);
   }
 
   void _showSnackBar(String message) {
@@ -202,8 +132,8 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
             myLocationEnabled: true,
             myLocationButtonEnabled: true,
             zoomControlsEnabled: true,
-            markers: _markers,
-            polylines: _polylines,
+            markers: const <Marker>{},
+            polylines: const <Polyline>{},
           ),
 
           // 2. Floating Menu Button
@@ -224,9 +154,8 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
             ),
           ),
 
-          // 3. Top Pickup Panel (Idle/Searching)
-          if (_rideState == RideState.idle || _rideState == RideState.searching)
-            Positioned(
+          // 3. Top pickup panel
+          Positioned(
               top: 50,
               left: 80,
               right: 20,
@@ -254,7 +183,7 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
               ),
             ),
 
-          // 4. Bottom Panels based on state
+          // 4. Bottom panel
           _buildBottomPanel(),
         ],
       ),
@@ -262,127 +191,59 @@ class _CustomerDashboardScreenState extends State<CustomerDashboardScreen> {
   }
 
   Widget _buildBottomPanel() {
-    switch (_rideState) {
-      case RideState.idle:
-        return Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: const BoxDecoration(
-              color: AppConstants.surfaceColor,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-              boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 20, offset: Offset(0, -5))],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Search Bar
-                GestureDetector(
-                  onTap: () => context.push('/book-ride'),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppConstants.backgroundColor,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white12),
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: AppConstants.surfaceColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+          boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 20, offset: Offset(0, -5))],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GestureDetector(
+              onTap: () => context.push(AppRoutes.bookRide),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppConstants.backgroundColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.search, color: AppConstants.primaryColor),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Where to move your luggage?',
+                      style: TextStyle(color: AppConstants.textSecondary, fontSize: 15),
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.search, color: AppConstants.primaryColor),
-                        const SizedBox(width: 12),
-                        const Text(
-                          "Where to move your luggage?",
-                          style: TextStyle(color: AppConstants.textSecondary, fontSize: 15),
-                        ),
-                      ],
-                    ),
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 20),
-                // Vehicle Selector
-                VehicleSelectorWidget(onSelected: (v) => _selectedVehicle = v),
-                const SizedBox(height: 24),
-                // Confirm Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _handleBookRide,
-                    style: ElevatedButton.styleFrom(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                    child: const Text("Confirm Ride", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-        );
-      
-      case RideState.searching:
-        return Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: Container(
-            padding: const EdgeInsets.all(32),
-            decoration: const BoxDecoration(
-              color: AppConstants.surfaceColor,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+            const SizedBox(height: 20),
+            VehicleSelectorWidget(onSelected: (v) => _selectedVehicle = v),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _openBookRide,
+                style: ElevatedButton.styleFrom(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                child: const Text('Confirm Ride', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(color: AppConstants.primaryColor),
-                const SizedBox(height: 24),
-                const Text(
-                  "Searching for drivers...",
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  "Nearby drivers are being notified",
-                  style: TextStyle(color: AppConstants.textSecondary, fontSize: 14),
-                ),
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: OutlinedButton(
-                    onPressed: _cancelRide,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.redAccent),
-                      foregroundColor: Colors.redAccent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text("Cancel Search"),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-
-      case RideState.assigned:
-      case RideState.inProgress:
-        return Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: DriverInfoPanel(
-            name: "Ahmed Khan",
-            vehicleInfo: "Mini Truck",
-            vehicleNumber: "KHI-4567",
-            rating: 4.8,
-            photoUrl: "https://i.pravatar.cc/150?u=driver",
-            onCall: () {},
-            onChat: () => context.push('/chat-rooms'),
-            onCancel: _cancelRide,
-          ),
-        );
-    }
+          ],
+        ),
+      ),
+    );
   }
-
 }
+

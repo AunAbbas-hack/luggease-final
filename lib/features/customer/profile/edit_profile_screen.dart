@@ -173,7 +173,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             ? (_imagePath!.startsWith('http')
                                 ? NetworkImage(_imagePath!)
                                 : FileImage(File(_imagePath!)) as ImageProvider)
-                            : const NetworkImage('https://i.pravatar.cc/150?u=customer'),
+                            : null,
+                        child: _imagePath == null
+                            ? const Icon(Icons.person, color: Colors.white70, size: 64)
+                            : null,
                       ),
                     ),
                     Positioned(

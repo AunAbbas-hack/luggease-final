@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -33,13 +35,24 @@ class DashboardDrawer extends StatelessWidget {
                       width: 2,
                     ),
                   ),
-                  child: CircleAvatar(
-                    radius: 30,
-                    backgroundImage: user?.profileImage != null
-                        ? NetworkImage(user!.profileImage!)
-                        : const NetworkImage(
-                            'https://i.pravatar.cc/150?u=customer',
-                          ),
+                  child: Builder(
+                    builder: (context) {
+                      final pi = user?.profileImage;
+                      ImageProvider? avatar;
+                      if (pi != null && pi.isNotEmpty) {
+                        avatar = pi.startsWith('http')
+                            ? NetworkImage(pi)
+                            : FileImage(File(pi)) as ImageProvider;
+                      }
+                      return CircleAvatar(
+                        radius: 30,
+                        backgroundColor: AppConstants.primaryColor.withValues(alpha: 0.3),
+                        backgroundImage: avatar,
+                        child: avatar == null
+                            ? const Icon(Icons.person, color: Colors.white, size: 32)
+                            : null,
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(width: 16),

@@ -65,16 +65,33 @@ service cloud.firestore {
       allow read: if signedIn() && (
         resource.data.customerId == request.auth.uid ||
         resource.data.driverId == request.auth.uid ||
-        resource.data.status == 'pending'
+        resource.data.status == 'pending' ||
+        resource.data.status == 'searching'
       );
       allow create: if signedIn()
         && request.resource.data.customerId == request.auth.uid;
-      allow update: if signedIn() && (
-        resource.data.customerId == request.auth.uid ||
-        resource.data.driverId == request.auth.uid ||
-        (resource.data.status == 'pending'
-          && request.resource.data.driverId == request.auth.uid)
-      );
+
+      function bookingParticipantUpdate() {
+        return resource.data.customerId == request.auth.uid
+          || resource.data.driverId == request.auth.uid
+          || (resource.data.status == 'pending'
+            && request.resource.data.driverId == request.auth.uid);
+      }
+
+      // Only assigned driver may change live GPS fields (blocks fake customer GPS).
+      function touchesDriverLocationFields() {
+        return request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['driverLat', 'driverLng', 'locationUpdatedAt']);
+      }
+
+      function assignedDriverWritesLocation() {
+        return resource.data.driverId != null
+          && resource.data.driverId == request.auth.uid;
+      }
+
+      allow update: if signedIn()
+        && bookingParticipantUpdate()
+        && (!touchesDriverLocationFields() || assignedDriverWritesLocation());
       allow delete: if signedIn() && resource.data.customerId == request.auth.uid;
 
       match /messages/{messageId} {

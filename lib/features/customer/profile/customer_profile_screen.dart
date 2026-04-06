@@ -47,11 +47,14 @@ class CustomerProfileScreen extends StatelessWidget {
                     child: CircleAvatar(
                       radius: 60,
                       backgroundColor: AppConstants.surfaceColor,
-                      backgroundImage: user?.profileImage != null 
-                        ? (user!.profileImage!.startsWith('http') 
-                            ? NetworkImage(user.profileImage!) 
-                            : FileImage(File(user.profileImage!)) as ImageProvider)
-                        : const NetworkImage('https://i.pravatar.cc/150?u=customer'),
+                      backgroundImage: user?.profileImage != null
+                          ? (user!.profileImage!.startsWith('http')
+                              ? NetworkImage(user.profileImage!)
+                              : FileImage(File(user.profileImage!)) as ImageProvider)
+                          : null,
+                      child: user?.profileImage == null
+                          ? const Icon(Icons.person, color: Colors.white70, size: 64)
+                          : null,
                     ),
                   ),
                   const SizedBox(height: 20),
